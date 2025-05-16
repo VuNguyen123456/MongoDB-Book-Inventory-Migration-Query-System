@@ -1,0 +1,67 @@
+Write MongoDB commands to count:
+• The number of documents in the Books collection.
+• The number of Book_Copies documents now embedded inside each book
+//1
+db.Books.count()
+
+//2
+db.Books.aggregate([
+  {
+    $project: {
+      numOfCopies: { $size: { $ifNull: ["$Book_Copies", []] } }
+    }
+  }
+]);
+
+1. Find the ISBNs and titles of the books in the “Data Science” category.
+2. Count how many books have at least one damaged copy.
+3. Find the titles and editions of books in either “Programming” or “Algorithms”
+category.
+4. Find the titles of books whose price is between $30 and $50 (inclusive).
+5. Find the ISBNs of books where the first book copy (Copy# =1) is marked as
+damaged.
+6. Count the number of available copies for the book titled “Learning SQL”.
+7. Find the ISBNs of books that have no available copies.
+8. Count the total number of copies for each book
+
+//1
+db.Books.find({ Category: "Data Science" }, {ISBN: 1, Title: 1, _id: 0});
+
+//2
+db.Books.aggregate([
+    { $match: {"Book_Copies.Status": "Damaged"}},
+    { $count: "total book with damaged copy"}
+]);
+
+//3
+db.Books.find({ $or: [{ Category: "Programming" }, {Category: "Algorithms"}]}, {Title: 1, Edition: 1, _id: 0});
+
+//4
+db.Books.find({ Price: {$gte: 30, $lte: 50}}, {Title: 1, _id: 0});
+
+//5
+db.Books.find(
+    {Book_Copies: {$elemMatch: {Status: "Damaged", CopyNumber: 1}}}, 
+    {ISBN: 1, _id: 0}
+)
+
+//6
+db.Books.aggregate([
+    { $match: {Title: "Learning SQL"}},
+    { $unwind: "$Book_Copies" },
+    { $match: {"Book_Copies.Status": "Available"}},
+    { $count: "total available copies for the book titled Learning SQL"}
+]);
+
+//7
+db.Books.find(
+    {Book_Copies: {$not: {$elemMatch: {Status: "Available"}}}},
+    {Title: 1, _id: 0}
+)
+
+//8
+db.Books.aggregate([
+    { $unwind: "$Book_Copies" },
+    { $group: { _id: "$ISBN", totalCopies: {$sum: 1}}},
+    { $project:{ ISBN: "$_id",totalCopies: 1, _id: 0 }}
+]);
